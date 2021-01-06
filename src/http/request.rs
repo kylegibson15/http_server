@@ -4,12 +4,27 @@ use std::error::Error;
 use std::fmt::{Result as FmtResult, Debug, Display, Formatter};
 use std::str;
 use std::str::Utf8Error;
-use super::{QueryString, QueryStringValue};
+use super::{QueryString};
 
+#[derive(Debug)]
 pub struct Request<'buf> {
   path: &'buf str,
   query_string: Option<QueryString<'buf>>,
   method: Method,
+}
+
+impl<'buf> Request<'buf> {
+  pub fn path(&self) -> &str {
+      &self.path
+  }
+
+  pub fn method(&self) -> &Method {
+      &self.method
+  }
+
+  pub fn query_string(&self) -> Option<&QueryString> {
+      self.query_string.as_ref()
+  }
 }
 
 impl<'buf> TryFrom<&'buf [u8]> for Request<'buf> {
@@ -83,13 +98,13 @@ impl ParseError {
 
 impl From<MethodError> for ParseError {
   fn from(_: MethodError) -> Self {
-    Self::InvalidMethod;
+    return Self::InvalidMethod;
   }
 }
 
 impl From<Utf8Error> for ParseError {
   fn from(_: Utf8Error) -> Self {
-    Self::InvalidEncoding;
+    return Self::InvalidEncoding;
   }
 }
 

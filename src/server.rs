@@ -1,7 +1,16 @@
 use std::net::TcpListener;
-use std::io::{Read, Write};
-use crate::http::{Request};
-use std::convert::{TryInto, TryFrom};
+use std::io::Read;
+use crate::http::{Request, Response, StatusCode, ParseError};
+use std::convert::TryFrom;
+
+pub trait Handler {
+    fn handle_request(&mut self, request: &Request) -> Response;
+
+    fn handle_bad_reqeust(&mut self, e: &ParseError) -> Response {
+        println!("Failed to parse request: {}", e);
+        Response::new(StatusCode::BadRequest, None)
+    }
+}
 
 pub struct Server {
     addr: String,
@@ -12,7 +21,7 @@ impl Server {
         Self { addr }
     }
 
-    pub fn run(self) {
+    pub fn run(self, mut handler: impl Handler) {
         print!("Application Running\n");
         print!("Listening on {}...\n", self.addr);
 
@@ -26,15 +35,14 @@ impl Server {
                         Ok(_) => {
                             print!("Received a request: {}", String::from_utf8_lossy(&buffer));
 
-                            match Request::try_from(&buffer[..]) {
-                                Ok(request) => {
-                                    dbg!(request);
-                                    // let response = 
-                                    write!(stream, "HTTP/1.1 404 Not Found\r\n\r\n");
-                                }
-                                Err(e) => print!("Failed to parse a request: {}", e),
+                            let response = match Request::try_from(&buffer[..]) {
+                                Ok(request) => handler.handle_request(&request),
+                                Err(e) => handler.handle_bad_reqeust(&e),
+                            };
+
+                            if let Err(e) = response.send(&mut stream) {
+                                print!("Failed to send response: {}", e);
                             }
-                            // let res: &Result<Request, _> = &buffer[..].try_into();
                         }
                         Err(e) => print!("Failed to read from connection: {}", e)
                     }
